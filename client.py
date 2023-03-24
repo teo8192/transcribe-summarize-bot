@@ -27,9 +27,27 @@ async def on_ready():
 
 @bot.command(pass_context=True, name="start", help="Starts audio recording.")
 async def start_record(ctx):
-    await ctx.author.voice.channel.connect() # Connect to the voice channel of the author
-    ctx.voice_client.start_recording(discord.sinks.MP3Sink(), finished_callback, ctx) # Start the recording
-    await ctx.channel.send("Recording...")
+    try:
+        await ctx.author.voice.channel.connect() # Connect to the voice channel of the author
+        ctx.voice_client.start_recording(discord.sinks.MP3Sink(), finished_callback, ctx) # Start the recording
+        await ctx.channel.send("Recording...")
+    except:
+        await ctx.channel.send("You are not in a voice channel!")
+
+async def process_audio_file(user_id, filename_base, channel, encoding):
+    print("transcribing audio to ", f"{filename_base}.txt")
+    text = sr.recognize_from_file(os.path.join(file_directory, f"{filename_base}.{encoding}"))
+    joined_text = "\n".join(text)
+    with open(os.path.join(file_directory, f"{filename_base}.txt"), "w") as f:
+        f.write(joined_text)
+
+    print("summarizing text to ", f"{filename_base}-summary.txt")
+    summary = ta.summarize_text([" ".join(text)])
+    joined_summary = "\n".join(summary)
+    with open(os.path.join(file_directory, f"{filename_base}-summary.txt"), "w") as f:
+        f.write(joined_summary)
+
+    await channel.send(f"Summary for {user_id}: {joined_summary}")
 
 async def finished_callback(sink, ctx):
     # Here you can access the recorded files:
@@ -40,6 +58,8 @@ async def finished_callback(sink, ctx):
 
     time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
+    filenames = []
+
     for user_id, audio in sink.audio_data.items():
         filename_base = f"{user_id}-{time}"
 
@@ -47,22 +67,13 @@ async def finished_callback(sink, ctx):
         with open(os.path.join(file_directory, f"{filename_base}.{sink.encoding}"), "wb") as f:
             f.write(audio.file.read())
 
-        print("transcribing audio to ", f"{filename_base}.txt")
-        text = sr.recognize_from_file(os.path.join(file_directory, f"{filename_base}.{sink.encoding}"))
-        joined_text = "\n".join(text)
-        with open(os.path.join(file_directory, f"{filename_base}.txt"), "w") as f:
-            f.write(joined_text)
+        filenames.append((user_id, filename_base))
 
-        print("summarizing text to ", f"{filename_base}-summary.txt")
-        summary = ta.summarize_text([" ".join(text)])
-        joined_summary = "\n".join(summary)
-        with open(os.path.join(file_directory, f"{filename_base}-summary.txt"), "w") as f:
-            f.write(joined_summary)
-
-        await ctx.channel.send(f"Summary for {user_id}: {joined_summary}")
-
-    await ctx.channel.send(f"Finished! Summarized for {', '.join(recorded_users)}.")
+    await ctx.channel.send(f"Transcribing, analyzing, and summarizing audio for {', '.join(recorded_users)}...")
     await ctx.voice_client.disconnect() # Disconnect from the voice channel
+
+    for user_id, filename in filenames:
+        await process_audio_file(user_id, filename, ctx.channel, sink.encoding)
 
 @bot.command(pass_context=True, name="stop", help="Stops the recording.")
 async def stop_recording(ctx):
