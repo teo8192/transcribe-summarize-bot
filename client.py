@@ -35,31 +35,38 @@ async def finished_callback(sink, ctx):
     # Here you can access the recorded files:
     recorded_users = [
         f"<@{user_id}>"
-        for user_id, audio in sink.audio_data.items()
+        for user_id, _ in sink.audio_data.items()
     ]
 
     time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     for user_id, audio in sink.audio_data.items():
         filename_base = f"{user_id}-{time}"
+
+        print("saving audio to ", f"{filename_base}.{sink.encoding}")
         with open(os.path.join(file_directory, f"{filename_base}.{sink.encoding}"), "wb") as f:
             f.write(audio.file.read())
+
+        print("transcribing audio to ", f"{filename_base}.txt")
         text = sr.recognize_from_file(os.path.join(file_directory, f"{filename_base}.{sink.encoding}"))
         joined_text = "\n".join(text)
-        await ctx.channel.send(f"Transcribed text for {user_id}: {joined_text}")
         with open(os.path.join(file_directory, f"{filename_base}.txt"), "w") as f:
             f.write(joined_text)
 
-        summary = ta.summarize_text(text)
+        print("summarizing text to ", f"{filename_base}-summary.txt")
+        summary = ta.summarize_text([" ".join(text)])
         joined_summary = "\n".join(summary)
+        with open(os.path.join(file_directory, f"{filename_base}-summary.txt"), "w") as f:
+            f.write(joined_summary)
+
         await ctx.channel.send(f"Summary for {user_id}: {joined_summary}")
 
-    await ctx.channel.send(f"Finished! Recorded audio for {', '.join(recorded_users)}.")
+    await ctx.channel.send(f"Finished! Summarized for {', '.join(recorded_users)}.")
     await ctx.voice_client.disconnect() # Disconnect from the voice channel
 
 @bot.command(pass_context=True, name="stop", help="Stops the recording.")
 async def stop_recording(ctx):
     ctx.voice_client.stop_recording() # Stop the recording, finished_callback will shortly after be called
     await ctx.channel.send("Stopped!")
-# client.run(TOKEN)
+
 bot.run(config.TOKEN)
