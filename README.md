@@ -26,7 +26,9 @@ TEXT_ANALYTICS_REGION=<the-second-region>
 # Usage
 
 Just run the bot, then use the commands `!start @transcription` and `!stop @transcription`.
-The audio recordings are saved in the `recordings` folder, and also sent on discord.
-The full transcription is also sent on discord (should maybe save this to a file as well?).
+The audio recordings are saved in the `recordings` directory.
+The full transcription is sent on discord, and also saved in the recordings directory.
 
 The summarization should also be sent on discord, when that works.
+
+Run with `python client.py`

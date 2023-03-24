@@ -37,22 +37,24 @@ async def finished_callback(sink, ctx):
         f"<@{user_id}>"
         for user_id, audio in sink.audio_data.items()
     ]
-    files = [discord.File(audio.file, f"{user_id}.{sink.encoding}") for user_id, audio in sink.audio_data.items()]
 
     time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     for user_id, audio in sink.audio_data.items():
-        filename = f"{user_id}-{time}.{sink.encoding}"
-        with open(os.path.join(file_directory, filename), "wb") as f:
+        filename_base = f"{user_id}-{time}"
+        with open(os.path.join(file_directory, f"{filename_base}.{sink.encoding}"), "wb") as f:
             f.write(audio.file.read())
-        text = sr.recognize_from_file(os.path.join(file_directory, filename))
+        text = sr.recognize_from_file(os.path.join(file_directory, f"{filename_base}.{sink.encoding}"))
         joined_text = "\n".join(text)
         await ctx.channel.send(f"Transcribed text for {user_id}: {joined_text}")
+        with open(os.path.join(file_directory, f"{filename_base}.txt"), "w") as f:
+            f.write(joined_text)
+
         summary = ta.summarize_text(text)
         joined_summary = "\n".join(summary)
         await ctx.channel.send(f"Summary for {user_id}: {joined_summary}")
 
-    await ctx.channel.send(f"Finished! Recorded audio for {', '.join(recorded_users)}.", files=files)
+    await ctx.channel.send(f"Finished! Recorded audio for {', '.join(recorded_users)}.")
     await ctx.voice_client.disconnect() # Disconnect from the voice channel
 
 @bot.command(pass_context=True, name="stop", help="Stops the recording.")
