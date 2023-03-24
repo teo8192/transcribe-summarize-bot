@@ -1,0 +1,6 @@
+py-cord
+python-dotenv
+PyNaCl
+azure-cognitiveservices-speech
+azure-ai-textanalytics==5.3.0b1
+azure-ai-language-conversations==1.1.0b3
